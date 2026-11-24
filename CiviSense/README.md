@@ -1,154 +1,601 @@
-# CiviSense – Intelligent Civic Complaint Analysis, Duplicate Detection & Resolution Prioritization
+# CiviSense
 
-An academic **Data Mining + Data Wrangling** project: Django + PostgreSQL web application with citizen, officer and
-administrator roles, built around the real *Bengaluru Civic Complaints* dataset. CiviSense is an independent prototype –
-it is **not** integrated with BBMP or any government system.
+### Intelligent Civic Complaint Analysis, Prioritisation & AI-Assisted Resolution
 
-## Dataset provenance (verified)
-* Source: https://github.com/sharmila-udaiyar/bengaluru-civic-complaints-analytics (`data/raw/bengaluru_civic_complaints_raw.csv`, MIT licence – see `data/DATASET_LICENSE.txt`).
-* The repository README describes the data as real citizen complaints filed in Bengaluru, Jan 2019 – Jul 2022. The upstream repo does not document the original public source, so original provenance beyond that is **unverified**.
-* Verified by the pipeline: **16,071 raw rows**, cp1252 encoding, 17 columns, 8 mixed date-string formats (month-first) → **16,038** after removing 33 exact duplicates.
-* Missing fields / limitations: no resolution timestamp, no citizen id, no severity field, `address` often empty (7,163 rows), department missing for 652 rows (kept unassigned, never guessed), 32 rows without category (kept as *Uncategorised*), 28 rows with no Latin-script text after cleaning (kept, excluded from NLP).
-* Historical records are labelled `source = HISTORICAL` (refs `H-000001…`); records submitted through the app are `source = LIVE` (refs `CS-2026-000001…`). All mining metrics use historical data only.
+CiviSense is a civic-tech web application designed to make complaint
+management more organised, data-driven and transparent. Built around
+Bengaluru civic complaint data, it brings together **data wrangling,
+machine learning, geospatial analytics, role-based workflows and a
+Gemini-powered AI assistant** in one platform.
 
-## Setup on Windows (PowerShell, Python 3.12 recommended, PostgreSQL 14+)
-```powershell
-cd CiviSense
+Citizens can submit and track civic complaints, while department
+officers can review assigned complaints, identify similar reports and
+manage resolution updates. Administrators can oversee users,
+departments, wards and categories. The platform also exposes selected
+application capabilities through the **Model Context Protocol (MCP)**,
+allowing the AI assistant to interact with the same backend services
+used by the web application.
+
+> **Project scope:** CiviSense is an academic prototype and is not an
+> official BBMP platform. It is not connected to BBMP or any government
+> complaint-management system.
+
+------------------------------------------------------------------------
+
+## Contents
+
+-   [Highlights](#highlights)
+-   [How CiviSense works](#how-civisense-works)
+-   [Technology stack](#technology-stack)
+-   [Machine learning and analytics](#machine-learning-and-analytics)
+-   [AI assistant and MCP
+    integration](#ai-assistant-and-mcp-integration)
+-   [Voice-based complaint
+    submission](#voice-based-complaint-submission)
+-   [Roles and access](#roles-and-access)
+-   [Dataset](#dataset)
+-   [Project structure](#project-structure)
+-   [Getting started](#getting-started)
+-   [Environment configuration](#environment-configuration)
+-   [Demo accounts](#demo-accounts)
+-   [Running tests](#running-tests)
+-   [Important limitations](#important-limitations)
+-   [Future scope](#future-scope)
+
+------------------------------------------------------------------------
+
+## Highlights
+
+  -----------------------------------------------------------------------
+  Module                              What it does
+  ----------------------------------- -----------------------------------
+  Complaint management                Supports complaint submission,
+                                      assignment, status tracking and
+                                      update history
+
+  Intelligent classification          Uses an ML model to suggest a
+                                      complaint category from its
+                                      description
+
+  Duplicate detection                 Finds potentially similar
+                                      complaints to help reduce repeated
+                                      manual review
+
+  Priority assessment                 Calculates an explainable priority
+                                      score using configurable factors
+
+  Civic analytics                     Presents complaint trends,
+                                      ward-level insights and category
+                                      distributions
+
+  Geospatial insights                 Displays complaint locations and
+                                      DBSCAN-based hotspot clusters on a
+                                      map
+
+  Bilingual input                     Supports typed and browser-based
+                                      voice input in English and Kannada
+
+  Gemini AI assistant                 Helps users explore complaint
+                                      information and initiate supported
+                                      workflows through natural language
+
+  MCP integration                     Connects the AI assistant to
+                                      validated backend tools through the
+                                      Model Context Protocol
+
+  Human approval                      Requires user confirmation before
+                                      sensitive actions are carried out
+  -----------------------------------------------------------------------
+
+## How CiviSense works
+
+1.  **Report:** A citizen submits a civic issue using typed text or
+    voice input.
+2.  **Review:** The citizen reviews the recognised or entered
+    description and confirms the details.
+3.  **Analyse:** CiviSense suggests a category, checks for possible
+    duplicates and calculates a priority score.
+4.  **Manage:** The complaint becomes available to the appropriate
+    workflow based on the user's role and department.
+5.  **Track:** Citizens can check complaint status, while officers can
+    review and update complaints within their permitted scope.
+6.  **Understand:** Dashboards, ward analytics and map-based insights
+    help users explore complaint patterns.
+7.  **Assist:** The Gemini assistant can use MCP tools to retrieve
+    information and prepare supported actions. Sensitive changes remain
+    subject to human confirmation.
+
+## Technology stack
+
+  -----------------------------------------------------------------------
+  Area                                Technologies
+  ----------------------------------- -----------------------------------
+  Backend                             Python, Django
+
+  Database                            PostgreSQL
+
+  Data wrangling                      Pandas, NumPy
+
+  Machine learning                    Scikit-learn, TF-IDF, Logistic
+                                      Regression, DBSCAN, K-Means
+
+  Model persistence                   Joblib
+
+  AI assistant                        Google Gemini, Google GenAI SDK
+
+  Tool integration                    Model Context Protocol (MCP),
+                                      Python MCP SDK
+
+  Data visualisation                  Plotly
+
+  Maps                                Leaflet
+
+  Frontend                            Django Templates, HTML, CSS,
+                                      JavaScript, Bootstrap
+
+  Voice input                         Browser Web Speech API
+
+  Image handling                      Pillow
+  -----------------------------------------------------------------------
+
+## Machine learning and analytics
+
+CiviSense combines multiple analytical techniques. The models and
+analytical outputs are generated from the historical complaint dataset;
+live complaints are handled separately.
+
+### 1. Complaint classification
+
+-   Text is converted into numerical features using **TF-IDF (unigrams
+    and bigrams)**.
+-   A **Logistic Regression** classifier predicts the likely complaint
+    category.
+-   Class balancing is used during training.
+-   The predicted category is a suggestion and can be reviewed or
+    corrected.
+
+### 2. Duplicate complaint detection
+
+-   TF-IDF text representations and cosine similarity are used to
+    identify semantically similar reports.
+-   The matching score can also consider geographic distance and date
+    proximity.
+-   Results are presented as **potential duplicates**, not automatic
+    merges.
+-   Officers can review, confirm or reject suggested duplicate
+    relationships.
+
+### 3. Complaint prioritisation
+
+A transparent rule-based score from 0 to 100 combines: - Category
+weight - Severity - Related reports - Waiting time - Public impact
+
+The score is mapped to Critical, High, Medium or Low priority. Officers
+can override a suggested priority with a reason. The score is a triage
+aid, not a prediction of danger or resolution time.
+
+### 4. Hotspot detection
+
+-   **DBSCAN** with the Haversine distance metric groups geographically
+    close complaints.
+-   Users can explore hotspot results using available category, ward and
+    source filters.
+-   Complaints without valid coordinates are not assigned invented
+    locations.
+
+### 5. Ward-level clustering
+
+-   **K-Means** groups wards using standardised complaint and
+    service-related indicators.
+-   The selected cluster count is evaluated using silhouette analysis.
+-   Clusters represent broad patterns and should not be interpreted as
+    definitive ward rankings.
+
+### Recorded model and dataset results
+
+The following figures are from the project's documented training and
+analysis run. They are dataset-specific and may change when the data or
+training configuration changes.
+
+  Evaluation                         Recorded result
+  -------------------------------- -----------------
+  Raw historical records                      16,071
+  Cleaned historical records                  16,038
+  Complaint classifier accuracy                0.804
+  Classifier macro precision                   0.627
+  Classifier macro recall                      0.707
+  Classifier macro F1-score                    0.655
+  DBSCAN clusters                                166
+  K-Means ward clusters selected                   7
+
+**Evaluation note:** Duplicate-detection evaluation used constructed
+positive examples, including synthetic reworded copies. Its reported
+score should not be interpreted as independently verified real-world
+duplicate accuracy. Ward clustering also had a low silhouette score, so
+cluster boundaries overlap.
+
+## AI assistant and MCP integration
+
+CiviSense includes a **Google Gemini-powered conversational assistant**.
+Instead of directly accessing database records or independently changing
+application data, the assistant discovers and invokes tools exposed by
+the CiviSense MCP server.
+
+The MCP server delegates operations to the application's existing Django
+backend services. This keeps the assistant, website and business rules
+connected to the same source of application data.
+
+### MCP capabilities
+
+The current MCP server exposes tools for: - Submitting a complaint -
+Checking complaint status - Finding potential duplicate complaints -
+Classifying complaint text - Calculating complaint priority - Finding
+nearby complaints - Retrieving civic hotspots - Listing wards -
+Retrieving ward analytics - Viewing an officer's assigned tasks -
+Updating complaint status
+
+### Human-in-the-loop control
+
+Sensitive actions such as complaint submission and status updates use a
+confirmation flow:
+
+1.  The assistant prepares the requested action.
+2.  The MCP server returns a preview instead of immediately performing
+    the change.
+3.  The user reviews the details in the application.
+4.  The action proceeds only after the user explicitly confirms it.
+
+The MCP layer also uses signed identity tokens, permission checks, input
+validation and audit logging. Access is based on the authenticated
+application user and their role; the model cannot grant itself
+additional permissions.
+
+## Voice-based complaint submission
+
+The complaint form supports typed input and browser-based speech
+recognition.
+
+-   English (`en-IN`) and Kannada (`kn-IN`) can be selected where
+    supported by the browser and device.
+-   Recognised speech is placed in an editable field.
+-   The citizen can review and correct the transcript before submission.
+-   The original complaint wording is retained; suggested title,
+    location and other extracted fields can be reviewed separately.
+-   Kannada text is preserved. A small Kannada civic-keyword lexicon can
+    provide English hints for the English-trained classification and
+    duplicate-matching models.
+
+**Browser note:** Voice input uses the Web Speech API. Chrome or Edge is
+recommended. Recognition availability and Kannada accuracy depend on the
+browser, operating system and device. Microphone permission and an
+internet connection may be required. Typed complaint submission remains
+available if speech recognition is unavailable.
+
+## Roles and access
+
+  -----------------------------------------------------------------------
+  Role                                Main responsibilities
+  ----------------------------------- -----------------------------------
+  Citizen                             Register, review and track their
+                                      own complaints; use the assistant
+                                      for supported citizen workflows
+
+  Department officer                  View and manage complaints
+                                      permitted for their department;
+                                      review duplicate suggestions and
+                                      update complaint status
+
+  Administrator                       Manage users, officers,
+                                      departments, wards, categories and
+                                      platform configuration
+  -----------------------------------------------------------------------
+
+Role-based access is enforced on the backend. The assistant uses the
+permissions of the currently authenticated user.
+
+## Dataset
+
+CiviSense uses the Bengaluru Civic Complaints dataset available from:
+
+-   **Dataset repository:** [Bengaluru Civic Complaints
+    Analytics](https://github.com/sharmila-udaiyar/bengaluru-civic-complaints-analytics)
+-   **Project data file:** `data/raw/bengaluru_civic_complaints_raw.csv`
+-   **Licence information:** Refer to `data/DATASET_LICENSE.txt` in the
+    project.
+
+The upstream repository describes the records as Bengaluru citizen
+complaints from January 2019 to July 2022. The original source from
+which the upstream repository obtained the records is not documented
+there, so provenance beyond that description is unverified.
+
+The project's documented wrangling run processed **16,071 raw rows** and
+produced **16,038 cleaned records**, removing 33 exact duplicates.
+Historical records and complaints submitted through the application are
+labelled separately (`HISTORICAL` and `LIVE`).
+
+## Project structure
+
+``` text
+CiviSense/
+├── config/                 # Django project settings and root URLs
+├── core/                   # Application models, views, forms and services
+│   ├── management/
+│   │   └── commands/       # Data, model, demo-user and MCP commands
+│   ├── assistant.py        # Gemini assistant and agent workflow
+│   ├── views_assistant.py  # Assistant application views
+│   ├── kannada.py          # Kannada language helpers
+│   └── extract.py          # Complaint text field suggestions
+├── civisense_mcp/          # MCP server, backend bridge and security
+├── ml/                     # Wrangling, mining and priority logic
+│   └── artifacts/          # Saved models and analysis results
+├── data/
+│   ├── raw/                # Source dataset
+│   └── cleaned/            # Cleaned data and wrangling outputs
+├── templates/              # Django HTML templates
+├── static/
+│   ├── css/                # Stylesheets
+│   └── js/                 # Frontend and voice functionality
+├── media/                  # Uploaded complaint images
+├── manage.py
+├── requirements.txt
+└── README.md
+```
+
+## Getting started
+
+### Prerequisites
+
+-   Python 3.12 recommended
+-   PostgreSQL 14 or later
+-   Git
+-   Windows PowerShell instructions are provided below
+-   Internet access for CDN-hosted frontend assets and browser speech
+    recognition
+
+### 1. Clone the repository
+
+``` bash
+git clone https://github.com/priyaaap14-collab/CIVI-SENSE.git
+cd CIVI-SENSE
+```
+
+If the Django project folder is nested in the repository, change into
+the directory that contains `manage.py` before running the following
+commands.
+
+### 2. Create and activate a virtual environment
+
+**Windows PowerShell**
+
+``` powershell
 python -m venv venv
-.\venv\Scripts\Activate.ps1          # if blocked: Set-ExecutionPolicy -Scope Process Bypass
+.\venv\Scripts\Activate.ps1
+```
+
+If PowerShell blocks activation for the current terminal session:
+
+``` powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\venv\Scripts\Activate.ps1
+```
+
+**macOS / Linux**
+
+``` bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Install dependencies
+
+``` bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
 
-# PostgreSQL (psql from the PostgreSQL bin folder; you will be asked for the postgres password)
-psql -U postgres -c "CREATE USER civisense WITH PASSWORD 'civisense123' CREATEDB;"
-psql -U postgres -c "CREATE DATABASE civisense OWNER civisense;"
-# Different credentials? set CIVISENSE_DB_NAME / _USER / _PASSWORD / _HOST / _PORT environment variables.
+### 4. Create the PostgreSQL database
 
+Create a PostgreSQL user and database for the project. For example, from
+`psql`:
+
+``` sql
+CREATE USER civisense WITH PASSWORD 'change-this-password' CREATEDB;
+CREATE DATABASE civisense OWNER civisense;
+```
+
+Use your own secure password and configure the matching environment
+variables in the next step. Do not commit database passwords or secret
+keys to Git.
+
+### 5. Configure environment variables
+
+Copy the example environment file:
+
+``` powershell
+Copy-Item .env.example .env
+```
+
+On macOS / Linux:
+
+``` bash
+cp .env.example .env
+```
+
+Edit `.env` and provide your local PostgreSQL credentials, a Django
+secret key and your Gemini API key. See [Environment
+configuration](#environment-configuration).
+
+### 6. Run database migrations
+
+``` bash
 python manage.py migrate
-python manage.py wrangle            # raw CSV -> data/cleaned/complaints_clean.csv + wrangling_report.json
-python manage.py import_history     # loads 16,038 cleaned records into PostgreSQL
-python manage.py train_models       # classifier, duplicate index + evaluation, duplicate pairs, priority scores (~1-2 min)
-python manage.py create_demo_users  # local test accounts (password CiviSense@123): admin, citizen1, officer_bbmp, officer_bescom, officer_bwssb, officer_btp
+```
+
+### 7. Prepare the historical dataset
+
+Run these commands in order:
+
+``` bash
+python manage.py wrangle
+python manage.py import_history
+python manage.py train_models
+```
+
+These commands prepare the cleaned dataset, import historical complaints
+into PostgreSQL and generate the machine-learning artefacts used by the
+application. Training time depends on your system.
+
+### 8. Create demo users (optional)
+
+``` bash
+python manage.py create_demo_users
+```
+
+See [Demo accounts](#demo-accounts) for the local demonstration
+credentials created by this command.
+
+### 9. Start the development server
+
+``` bash
 python manage.py runserver
 ```
-Open http://127.0.0.1:8000/. Run `python manage.py test core` to execute the automated tests (needs the `CREATEDB` right granted above).
-Use `/django-admin/` (admin account) to create officers/users, departments, wards, categories (incl. category severity weights).
-Maps and charts load Leaflet, Plotly, Bootstrap from CDNs, so an internet connection is needed in the browser.
 
-## Structure
+Open **http://127.0.0.1:8000/** in your browser.
+
+## Environment configuration
+
+The `.env.example` file lists the supported configuration variables. Set
+the values locally in `.env`; do not publish that file or expose API
+keys.
+
+  -----------------------------------------------------------------------
+  Variable                            Purpose
+  ----------------------------------- -----------------------------------
+  `CIVISENSE_DEBUG`                   Enables or disables Django debug
+                                      mode
+
+  `CIVISENSE_SECRET_KEY`              Django application secret key
+
+  `CIVISENSE_DB_NAME`                 PostgreSQL database name
+
+  `CIVISENSE_DB_USER`                 PostgreSQL username
+
+  `CIVISENSE_DB_PASSWORD`             PostgreSQL password
+
+  `CIVISENSE_DB_HOST`                 PostgreSQL host
+
+  `CIVISENSE_DB_PORT`                 PostgreSQL port
+
+  `GEMINI_API_KEY`                    API key used by the Gemini
+                                      assistant
+
+  `CIVISENSE_GEMINI_MODEL`            Gemini model selection
+
+  `CIVISENSE_ASSISTANT_MAX_TOKENS`    Assistant response token limit
+
+  `CIVISENSE_ASSISTANT_RATE`          Assistant rate-limit configuration
+
+  `CIVISENSE_MCP_SECRET`              Secret used for MCP token signing;
+                                      the application can fall back to
+                                      the Django secret key
+  -----------------------------------------------------------------------
+
+Generate a strong Django secret key and a separate MCP secret for local
+or production configuration. Keep all secrets out of source control. The
+assistant requires a valid Gemini API key; core complaint-management
+features can still be explored separately.
+
+## Demo accounts
+
+After running `python manage.py create_demo_users`, the project's
+documented local demo accounts are:
+
+  Account            Role / scope
+  ------------------ ---------------------------
+  `admin`            Administrator
+  `citizen1`         Citizen
+  `officer_bbmp`     BBMP department officer
+  `officer_bescom`   BESCOM department officer
+  `officer_bwssb`    BWSSB department officer
+  `officer_btp`      BTP department officer
+
+The documented demo password is `CiviSense@123`. These are local
+demonstration credentials only. Change or remove them before any
+deployment and never reuse them for real accounts.
+
+## Running tests
+
+Run the Django application tests with:
+
+``` bash
+python manage.py test core
 ```
-manage.py  requirements.txt  README.md
-config/            settings, root urls
-core/              models.py views.py urls.py forms.py admin.py services.py tests.py management/commands/{wrangle,import_history,train_models,create_demo_users}.py
-ml/                wrangling.py (Pandas pipeline)  mining.py (4 algorithms + duplicate scoring)  priority.py (rule engine)  artifacts/ (joblib models, results.json)
-templates/ static/ data/{raw,cleaned}/ media/
-```
 
-## Algorithms (all in `ml/`)
-| Feature | Method | Notes |
-|---|---|---|
-| Classification | TF-IDF (1–2 grams) + Logistic Regression (balanced) | trained on real category labels, saved with Joblib; categories with < 20 records (Covid 19, Fire Safety) excluded from training |
-| Duplicate detection | TF-IDF + cosine similarity, scaled by distance (full ≤ 250 m, zero at 1.5 km, 0.85 if location missing) and date proximity | suggestions only – nothing is merged/deleted; officers confirm or reject; confirmed pairs share a `DuplicateGroup` |
-| Hotspots | DBSCAN, haversine metric (default 300 m, min 15) | recomputed on demand with category / ward / source filters; invalid coordinates are never invented |
-| Ward clustering | K-Means on standardised features (log volume, backlog rate, resolved rate, comments, age of open complaints, category shares) | k chosen by highest silhouette in 3–8; elbow + silhouette charts shown |
-| Priority | transparent rule score 0–100 = category weight (25) + severity (25) + related reports (20) + waiting time (20) + public impact (10) | Critical ≥ 65, High ≥ 50, Medium ≥ 35, else Low; officers can override with a mandatory reason |
+The database user may need permission to create test databases
+(`CREATEDB`).
 
-## Actual results from the last run (also shown live on the *Data mining* page)
-* **Classifier** (20% stratified held-out test, 3,192 complaints, 20 classes): accuracy **0.804**, macro precision 0.627, macro recall 0.707, macro F1 **0.655**. Frequent categories score much better than rare ones; the per-class table and confusion matrix are in the app.
-* **Duplicate detection**: evaluated on a *constructed* set (synthetic re-worded copies vs. different real complaints). Precision/recall/F1 at threshold 0.5: ≈ 0.999 / 0.972 / 0.985. These are optimistic because the positives are easy synthetic paraphrases and there are no human duplicate labels. On the real historical data, 2,273 suspected pairs (2,003 complaints) were found at threshold 0.5 for officer review.
-* **DBSCAN** (300 m, min 15, 16,038 mapped complaints): 166 clusters, 5,681 noise points, silhouette 0.318, Davies-Bouldin 0.60.
-* **K-Means** (190 wards with ≥ 10 complaints, 8 excluded): chosen k = 7, silhouette **0.128** – a low value, i.e. ward groups overlap and should be read as soft tendencies, not sharp segments.
-* Wrangling: 16,071 → 16,038 records, 33 exact duplicates removed (logged in `data/cleaned/removed_exact_duplicates.csv`), 43 → 22 categories (+ Uncategorised), 198 wards, 16,038 valid coordinates (no invalid ones in this data).
+The repository also contains MCP protocol and assistant-agent tests. Run
+the relevant test modules using the project's test setup. Some tests use
+scripted or fake components to validate protocol behaviour; they do not
+replace end-to-end testing with a live Gemini API, a configured
+PostgreSQL database and a real browser.
 
-## Testing performed
-Automated tests (`python manage.py test core`, 16 tests, all passing) cover registration, role-specific login, role-based access, complaint submission, classification of new complaints, image upload validation, duplicate detection and confirmation, assignment, status updates with history and notifications, priority override, category correction, DBSCAN API, dashboard KPIs and filters. All pages were also rendered with the full 16,038-record database. The pages were tested through Django's test client – **layout, Leaflet maps and Plotly charts were not visually inspected in a browser**, so please click through every page once.
+Before a demonstration, manually verify: - Citizen registration, login
+and complaint submission - Officer department-level access and status
+updates - Admin management pages - Classification, duplicate suggestions
+and priority output - Map filters, complaint markers and analytics -
+Gemini assistant responses and MCP tool discovery - Confirmation prompts
+for sensitive actions - English and Kannada voice input on the target
+browser/device
 
-## Notes and limits
-* Priority is a triage aid, not a prediction of danger or of resolution. Historical records have no severity, so a neutral midpoint is used, and public comment count acts as the impact proxy; waiting time for historical records is measured to the dataset end date (2022-07-31). As a result many old open historical complaints score High.
-* Corrected categories on live complaints are stored and added to the training data the next time `train_models` runs.
-* Citizen details are hidden from officers; images get random file names and are validated (type, size, Pillow check). Set `CIVISENSE_DEBUG=0`, a real `CIVISENSE_SECRET_KEY` and proper hosts before any real deployment.
+## Important limitations
 
----
+-   CiviSense is a prototype, not an official government service or a
+    live BBMP integration.
+-   Historical data does not contain every field needed for operational
+    evaluation. For example, it has no resolution timestamp, citizen ID
+    or original severity field.
+-   Some historical records have missing addresses, departments or
+    categories. Missing information is not silently invented.
+-   The classifier is trained on historical complaint text and category
+    labels. Performance can vary across categories, especially those
+    with fewer examples.
+-   Kannada classification support is limited by the current
+    English-trained models and keyword-based hints. It should not be
+    treated as full Kannada-language understanding.
+-   Duplicate detection returns suggestions for review; it does not
+    automatically merge or delete complaints.
+-   Priority is an explainable triage score, not a prediction of danger,
+    service-level compliance or resolution time.
+-   Map positions depend on available complaint coordinates. Ward
+    estimates are not official ward boundary polygons.
+-   Browser speech recognition depends on browser/device support and may
+    send audio to the browser vendor's speech service.
+-   Local development settings are not production settings. A real
+    deployment needs secure secrets, `DEBUG` disabled, appropriate
+    allowed hosts, HTTPS, hardened database access, backups and
+    deployment-specific security review.
 
-# Track 1 – "Make MCP Matter": MCP server, Claude assistant, voice complaints, corrected maps
+## Future scope
 
-## What was added (nothing was removed)
-| Area | Where |
-|---|---|
-| MCP server (official Python SDK), 10 tools | `civisense_mcp/` (`server.py` tools + validation, `backend.py` real Django services, `security.py` tokens) |
-| Claude agent (discovers + calls the tools over MCP) | `core/assistant.py`, `core/views_assistant.py`, `templates/assistant.html`, `static/js/assistant.js` |
-| Bilingual voice / typed complaint review | `static/js/voice.js`, `static/js/submit.js`, `core/kannada.py`, `core/extract.py`, `/api/complaint/analyze/` |
-| Corrected maps | `core/geo_utils.py`, `core/views.py` (`api_geo`, `api_geo_point`), `static/js/geo.js` |
-| Central typography | `static/css/civisense.css` (`--cs-font`: Inter, Noto Sans Kannada) |
+Potential areas for further development include: - Improved Kannada
+language understanding and evaluation with a representative labelled
+dataset - More robust duplicate-detection evaluation using
+human-verified complaint pairs - Integration with verified official
+civic data sources, subject to authorised access - Ward boundary
+visualisation using authoritative geospatial boundary data -
+Notifications and service-level monitoring for complaint updates - Model
+monitoring, feedback loops and periodic retraining - Accessibility and
+multilingual interface improvements - Production deployment with
+stronger observability, security and operational controls
 
-The ten tools: `submit_complaint`, `check_complaint_status`, `find_duplicate_complaints`, `classify_complaint`, `calculate_priority`, `get_nearby_complaints`, `get_civic_hotspots`, `get_ward_analytics`, `get_officer_tasks`, `update_complaint_status`. They call the same services, forms, ML models and DBSCAN code as the website – there are no canned chatbot replies and no parallel re-implementation.
+------------------------------------------------------------------------
 
-## Setup on Windows PowerShell (in addition to the steps above)
-```powershell
-pip install -r requirements.txt            # adds mcp, anthropic, python-dotenv
-Copy-Item .env.example .env                # then edit .env
-python manage.py migrate                   # applies 0002 (complaint language + input method)
-```
-Generate secrets:
-```powershell
-python -c "import secrets; print(secrets.token_urlsafe(50))"     # use for CIVISENSE_SECRET_KEY and CIVISENSE_MCP_SECRET
-```
+## Acknowledgement
 
-## Claude API setup
-1. Create a key in the Anthropic Console. 2. Put it in `.env` as `ANTHROPIC_API_KEY=...` (or `$env:ANTHROPIC_API_KEY="..."` for the current PowerShell window). 3. Optionally set `CIVISENSE_CLAUDE_MODEL` (default `claude-sonnet-5-5`). 4. Restart `runserver`, sign in, open **AI assistant**.
-The key is read only in `config/settings.py`, is never rendered into a template or JavaScript, and is **not** passed to the MCP subprocess. Without a key the assistant page says it is not configured; everything else keeps working.
+CiviSense was developed as an academic project exploring how data
+mining, data wrangling, geospatial analysis and AI-assisted workflows
+can support civic complaint management.
 
-## Starting the MCP server
-The web assistant starts the server itself (stdio subprocess) for each request, with a short-lived signed identity token for the logged-in user. To run it by hand:
-```powershell
-python manage.py mcp_token --user officer_bbmp          # prints an identity token (default 1 h)
-$env:CIVISENSE_MCP_TOKEN = "<token>"
-python -m civisense_mcp                                  # stdio (what Claude Desktop / MCP Inspector launch)
-python -m civisense_mcp --transport streamable-http --port 8765   # http://127.0.0.1:8765/mcp, needs  Authorization: Bearer <token>
-```
-MCP Inspector: `npx @modelcontextprotocol/inspector python -m civisense_mcp` with `CIVISENSE_MCP_TOKEN` set.
-
-## Security design
-* **Identity is never supplied by the model or the browser.** Django's session user is turned into an HMAC-signed, expiring token; the server re-verifies it on every call and takes role/department from the database, not from the token body or tool arguments.
-* **Permissions are enforced in the backend** (role matrix per tool; citizens see only their own complaints; officers only their department's data; another user's complaint returns the same "not found" as a missing one). Claude cannot widen its own access.
-* **Confirmation before sensitive actions** (`submit_complaint`, `update_complaint_status`): the server returns a preview and does nothing; the assistant UI shows a Confirm/Cancel card; only a click mints an approval token bound to that user, that tool, those exact arguments, valid 10 minutes. A model-supplied approval token is discarded.
-* **Audit log**: every tool call (allowed, refused, failed, confirmation-required) is written to the existing audit table, as are assistant messages and confirm/decline clicks.
-* Input validation (types, lengths, Bengaluru coordinate box, reference format), per-user rate limits, no stack traces or internals returned to the model, citizen personal data redacted for officers.
-* `CIVISENSE_DEBUG=0` refuses to start with the default secret key.
-
-## Voice complaints – setup and limitations
-* Uses the browser's **Web Speech API**. Use **Chrome or Edge**; Firefox has no SpeechRecognition. Needs internet (audio goes to the browser vendor's speech service) and `https://` or `http://localhost`. Allow microphone access when asked.
-* Choose English (`en-IN`) or Kannada (`kn-IN`). **Kannada recognition depends on the browser/OS/device and was NOT tested with real speech in this project** – do not assume it works on your device. If nothing is recognised the page says so and the typed box stays available.
-* The recognised text appears in an editable box and is **never submitted automatically**: the citizen reviews it, ticks "I have checked this text", and presses Submit. The original text (Kannada stays Kannada) is stored unchanged with its language and input method (voice/typed).
-* Classification and duplicate detection use English-trained models. For Kannada, a **small hand-written keyword list** (`core/kannada.py`) produces English hints for the models only; it covers common civic words, not the language. Kannada suggestions are marked as such and must be checked.
-* Ward is never guessed silently. It comes from a ward name found in the text or from the map pin (nearest ward centre estimate, labelled as an estimate) and is confirmed by the citizen.
-
-## Maps – what is shown and how
-* Every marker is a stored complaint coordinate. Nothing is invented or jittered. Complaints at the same coordinate (the data has stacks of up to 83) are shown as **one numbered marker** whose popup lists them.
-* Bengaluru bounds (lat 12.70–13.30, lon 77.30–77.90). Records outside are counted and reported, not drawn; records without coordinates are counted separately.
-* Clusters are the **real DBSCAN** result (haversine, radius and min-points from the filters). Noise points are drawn as plain markers.
-* Pins ≥ 6 km from the usual area of their ward are flagged "check location" but stay where they were stored.
-* **No ward boundary polygons are drawn** because the dataset has none; the page says so. The "nearest ward" estimate uses the median coordinate of each ward's complaints and is not a boundary.
-* Officers see only their department's complaints; other citizens' live reports are anonymised. If map tiles fail to load (CDN/internet), a notice is shown and markers still render.
-
-## Testing performed for Track 1
-**Run in the development sandbox and passing (31 tests):**
-* `tests/test_mcp_protocol.py` (16) – real MCP client ↔ server session over the SDK: tool discovery, schemas, validation, confirmation gate, forged/expired/mismatched approval tokens, identity binding, audit entries, no error leakage (uses an in-memory fake backend, so it checks the protocol and security layer, not the database).
-* `tests/test_assistant_agent.py` (9) – the agent loop with a **scripted stand-in for Claude**: pause for confirmation, confirm, decline, parallel tool calls, ignoring a model-supplied approval token, round limit.
-* `tests/test_geo_real_data.py` (6) – the map helpers on the real 16,071-row CSV: all complaints accounted for, markers at stored coordinates, stacks grouped (16,071 → 12,902 markers), real DBSCAN labels, far-flags without moving points. (This test found and fixed a rounding bug that produced two markers at one coordinate.)
-* `voice.js` with a **mocked** SpeechRecognition in headless Chromium (8 cases: unsupported, insecure page, mic blocked, no mic, network, silence, empty Kannada, Kannada text preserved). This checks error handling only, not real recognition.
-* Syntax/lint: `node --check` on all JS, `ruff`, `py_compile`.
-
-**NOT verified – please check before the demo:**
-* `core/test_track1.py` (Django tests for role permissions, citizen privacy, officer department scoping, voice-review enforcement, Kannada text preservation, the ward-pk fix, map scoping, and a missing-migration check) is written but has **never been executed**; expect it may need small fixes on first run.
-* The Django test-suite and migration `0002` against PostgreSQL (the sandbox had no Django or database). Run `python manage.py test core` and `python manage.py makemigrations --check --dry-run`.
-* Real Claude API calls (no API key in the sandbox) and the stdio MCP subprocess launched from Django against the real database.
-* Real English or Kannada speech recognition, Kannada font rendering, and Leaflet/Plotly rendering in a browser.
-* Behaviour of the trained ML models (the model files were not in the supplied zip; run `train_models`).
-
-## Manual checklist / demo workflow
-1. Log in as `citizen1`. **Submit complaint** → choose Kannada or English → press the microphone (or type) → review/edit the text → check the analysis panel (category, duplicates, priority) → tick the review box → Submit. Confirm the stored description is in the original language.
-2. Open **AI assistant** as `citizen1`: "Is there already a complaint about the pothole near Indiranagar?" (watch the tool progress lines, which appear only while a tool really runs) → "Register it for me" → the **Confirm** card shows the exact data → Confirm → reference number returned. Try "Show me another citizen's complaint" and see the refusal.
-3. Log in as `officer_bbmp`: "What are my pending tasks?" → "Mark <ref> In progress with note …" → Confirm card → Confirm. Ask about a BWSSB ward statistic and see that only own-department data is returned.
-4. Open the Django admin audit log and show the entries for each of the above.
-5. **Maps**: check the filters, stacked markers, cluster toggle, the "outside Bengaluru / no coordinates" counts and the ward-boundary note; switch the network off to see the tile notice.
-6. MCP Inspector (see above): list the 10 tools and call one with an invalid latitude to show validation.
+**Built with Python, Django, PostgreSQL, Scikit-learn, Google Gemini and
+the Model Context Protocol.**
