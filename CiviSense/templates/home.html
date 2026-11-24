@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Home{% endblock %}
+{% block public %}
+<section class="hero"><div class="container"><div class="row align-items-center g-5">
+  <div class="col-lg-7">
+    <div class="eyebrow mb-3">Bengaluru · Civic complaint intelligence</div>
+    <h1>Every complaint heard.<br>Every ward <span class="text-accent">served better.</span></h1>
+    <p class="lead mt-4">Intelligent civic complaint analysis, duplicate detection and resolution prioritisation for Bengaluru.</p>
+    <p class="hero-muted">An academic data mining and data wrangling project. Citizens report problems, the system classifies them, links related reports and recommends a transparent priority &ndash; officers stay in control of every decision. It is an independent prototype and is not connected to BBMP or any government system.</p>
+    <div class="d-flex flex-wrap gap-2 mt-4">
+      <a class="btn btn-accent btn-lg px-4" href="{% url 'register' %}"><i class="bi bi-person-plus"></i> Citizen registration</a>
+      <a class="btn btn-ghost btn-lg px-4" href="{% url 'login' 'citizen' %}">Citizen login</a>
+    </div>
+    {% if user.is_authenticated %}<p class="mt-3"><a class="text-accent" href="{% url 'dashboard' %}">You are signed in &rarr; open your workspace</a></p>{% endif %}
+  </div>
+  <div class="col-lg-5"><div class="hero-stat">
+    <div class="eyebrow mb-2">Complaints in the database</div>
+    <div class="num">{{ total }}</div>
+    <p class="small mt-2 mb-3" style="color:#8f9db0">Imported historical records and live submissions are always labelled by source.</p>
+    <div class="row-item"><i class="bi bi-tags"></i> Automatic category suggestion</div>
+    <div class="row-item"><i class="bi bi-files"></i> Related-report detection</div>
+    <div class="row-item"><i class="bi bi-geo-alt"></i> Ward hotspots &amp; clustering</div>
+  </div></div>
+</div></div></section>
+<div class="road-dash"></div>
+<section class="container my-5 py-3">
+  <div class="eyebrow mb-2" style="color:#b8740a">How it works</div>
+  <h2 class="fw-bold mb-4">From a citizen's report to a resolved issue</h2>
+  <div class="row g-4">
+  <div class="col-md-6 col-lg-3"><div class="step-card"><div class="step mb-3"><i class="bi bi-pencil-square"></i></div><h6 class="fw-bold">1. Report</h6><p class="small text-muted mb-0">Citizens describe the problem, pin the location and add a photo. The category is suggested automatically (TF-IDF + Logistic Regression).</p></div></div>
+  <div class="col-md-6 col-lg-3"><div class="step-card"><div class="step mb-3"><i class="bi bi-files"></i></div><h6 class="fw-bold">2. Link related reports</h6><p class="small text-muted mb-0">TF-IDF cosine similarity, distance and date proximity suggest related complaints. Nothing is merged automatically.</p></div></div>
+  <div class="col-md-6 col-lg-3"><div class="step-card"><div class="step mb-3"><i class="bi bi-flag"></i></div><h6 class="fw-bold">3. Prioritise</h6><p class="small text-muted mb-0">A rule-based score shows exactly which factors drove the recommendation. Officers can override it.</p></div></div>
+  <div class="col-md-6 col-lg-3"><div class="step-card"><div class="step mb-3"><i class="bi bi-graph-up"></i></div><h6 class="fw-bold">4. Analyse</h6><p class="small text-muted mb-0">DBSCAN hotspots and K-Means ward clusters are mined from real historical complaint data.</p></div></div>
+  </div>
+</section>
+<section class="container mb-5">
+  <h3 class="fw-bold mb-4">Choose your portal</h3>
+  <div class="row g-4">
+    <div class="col-md-4"><a class="portal-card" href="{% url 'login' 'citizen' %}"><i class="bi bi-person big"></i><h5 class="fw-bold mt-3">Citizen</h5><p class="small text-muted mb-0">Submit complaints and track their status.</p></a></div>
+    <div class="col-md-4"><a class="portal-card" href="{% url 'login' 'officer' %}"><i class="bi bi-briefcase big"></i><h5 class="fw-bold mt-3">Officer</h5><p class="small text-muted mb-0">Work through assigned complaints and update progress.</p></a></div>
+    <div class="col-md-4"><a class="portal-card" href="{% url 'login' 'admin' %}"><i class="bi bi-speedometer2 big"></i><h5 class="fw-bold mt-3">Administrator</h5><p class="small text-muted mb-0">Manage complaints, analytics and hotspots.</p></a></div>
+  </div>
+</section>
+<footer class="cs-footer"><div class="container d-flex flex-wrap justify-content-between gap-2"><span><strong class="text-white">CiviSense</strong> · Academic prototype</span><span>Not affiliated with BBMP or any government system.</span></div></footer>
+{% endblock %}

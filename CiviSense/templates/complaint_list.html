@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block title %}Complaint management{% endblock %}
+{% block heading %}Complaint management{% endblock %}
+{% block content %}
+<div class="cs-page-intro"><div><span class="eyebrow">Administration</span><h1>Complaint management</h1><p>Search, filter and review civic complaints across departments, categories and wards.</p></div><span class="cs-intro-icon"><i class="bi bi-clipboard2-data-fill"></i></span></div>
+<div class="card"><div class="card-body">{% include '_filters.html' %}{% include '_table.html' %}</div></div>
+{% endblock %}

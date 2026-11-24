@@ -1,0 +1,25 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Geographical analysis{% endblock %}
+{% block heading %}Geographical analysis{% endblock %}
+{% block head %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block content %}
+<div class="cs-page-intro"><div><span class="eyebrow">Location intelligence</span><h1>Geographical analysis</h1><p>Explore complaint density, identify hotspots and compare patterns across wards.</p></div><span class="cs-intro-icon"><i class="bi bi-geo-alt-fill"></i></span></div>
+<div class="explain mb-3"><span class="badge badge-algo">DBSCAN</span> Hotspots are density-based clusters of complaint coordinates (haversine distance). A cluster needs at least <em>min complaints</em> within <em>radius</em> metres of each other. Complaints without valid coordinates are never plotted or invented. Showing {{ scope_note }}. Live complaints with a pin: {{ live_count }}.</div>
+<div class="card mb-3"><div class="card-body"><div class="row g-2 align-items-end">
+  <div class="col-md-3"><label class="form-label small mb-0">Category</label><select id="f-cat" class="form-select form-select-sm"><option value="">All categories</option>{% for c in categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><label class="form-label small mb-0">Ward</label><select id="f-ward" class="form-select form-select-sm"><option value="">All wards</option>{% for w in wards %}<option value="{{ w.pk }}">{{ w.name }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><label class="form-label small mb-0">Source</label><select id="f-src" class="form-select form-select-sm"><option value="">All</option><option value="HISTORICAL">Imported historical</option><option value="LIVE">Live submissions</option></select></div>
+  <div class="col-md-1"><label class="form-label small mb-0">Radius (m)</label><input id="f-eps" type="number" value="300" min="50" max="3000" step="50" class="form-control form-control-sm"></div>
+  <div class="col-md-1"><label class="form-label small mb-0">Min complaints</label><input id="f-ms" type="number" value="15" min="3" max="200" class="form-control form-control-sm"></div>
+  <div class="col-md-2"><button id="apply" class="btn btn-sm btn-primary w-100"><i class="bi bi-arrow-repeat"></i> Run DBSCAN</button></div></div></div></div>
+<div class="row g-3"><div class="col-xl-8"><div class="card"><div class="card-body p-2"><div id="mapNotice" class="alert alert-warning py-1 small mb-1 d-none">Map background tiles could not be loaded (offline or blocked). Complaint markers are still drawn at their real coordinates.</div><div id="map"></div>
+  <div class="small text-muted p-2"><span class="me-3"><span style="color:#adb5bd">&#9679;</span> noise (not in a hotspot)</span><span class="me-3"><span style="color:#dc3545">&#9679;</span> clustered complaint &middot; circles = hotspot extent</span><span>Larger dot = several complaints stored at the same coordinate (click to list them)</span>
+  <div class="mt-1"><label class="me-3"><input type="checkbox" id="t-noise" checked> show noise points</label><label><input type="checkbox" id="t-circles" checked> show hotspot circles</label></div>
+  <div class="mt-1">Ward boundary polygons are not part of this dataset, so none are drawn. Wards come from each complaint's recorded ward field.</div></div></div></div></div>
+  <div class="col-xl-4"><div class="card mb-3"><div class="card-header">Clustering result</div><div class="card-body small" id="stats">Loading&hellip;</div></div>
+  <div class="card mb-3"><div class="card-header">Hotspot clusters</div><div class="card-body p-0" style="max-height:280px;overflow:auto"><table class="table table-sm table-hover small mb-0"><thead><tr><th>#</th><th>Complaints</th><th>Top category</th><th>Ward</th></tr></thead><tbody id="clusters"></tbody></table></div></div>
+  <div class="card"><div class="card-header">Concentration by ward (filtered set)</div><div class="card-body small" id="wards"></div></div></div></div>
+{% endblock %}
+{% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>window.GEO={apiUrl:"{% url 'api_geo' %}",pointUrl:"{% url 'api_geo_point' %}",complaintUrl:"{% url 'complaint_detail' 'ZZREFZZ' %}"};</script>
+<script src="{% static 'js/geo.js' %}"></script>{% endblock %}

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}{{ role_label }} login{% endblock %}
+{% block public %}
+<div class="auth-wrap">
+  <div class="auth-side">
+    <div class="eyebrow mb-3">{{ role_label }} portal</div>
+    <h2>Welcome back to Civi<span class="text-accent">Sense</span>.</h2>
+    <p class="mt-3">Report, track and resolve civic issues across Bengaluru with transparent, data-driven prioritisation.</p>
+  </div>
+  <div class="auth-pane"><div class="card auth-card"><div class="card-body p-4">
+    <div class="portal-switch mb-4"><a href="{% url 'login' 'citizen' %}" class="{% if role == 'CITIZEN' %}on{% endif %}">Citizen</a><a href="{% url 'login' 'officer' %}" class="{% if role == 'OFFICER' %}on{% endif %}">Officer</a><a href="{% url 'login' 'admin' %}" class="{% if role == 'ADMIN' %}on{% endif %}">Administrator</a></div>
+    <h4 class="mb-1 fw-bold">{{ role_label }} login</h4><p class="text-muted small">Sign in with your CiviSense {{ role_label|lower }} account.</p>
+    {% if error %}<div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>{% endif %}
+    <form method="post">{% csrf_token %}
+      <div class="mb-3"><label class="form-label">Username</label><input name="username" class="form-control" required autofocus></div>
+      <div class="mb-4"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required></div>
+      <button class="btn btn-primary btn-lg w-100">Sign in <i class="bi bi-arrow-right"></i></button>
+    </form>
+    {% if role == 'CITIZEN' %}<p class="small mt-3 mb-0 text-center">New here? <a href="{% url 'register' %}">Create a citizen account</a></p>{% endif %}
+  </div></div></div>
+</div>
+{% endblock %}

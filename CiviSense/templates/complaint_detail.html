@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}{{ c.ref }}{% endblock %}
+{% block heading %}Complaint {{ c.ref }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block content %}
+<div class="cs-page-intro cs-page-intro-compact"><div><span class="eyebrow">Complaint record</span><h1>Complaint {{ c.ref }}</h1><p>Review the report, priority recommendation, related complaints and status history.</p></div><span class="cs-intro-icon"><i class="bi bi-file-earmark-text-fill"></i></span></div>
+<div class="row g-3">
+<div class="col-xl-8">
+  <div class="card mb-3"><div class="card-body">
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      <span class="badge bg-{{ c.status_class }}">{{ c.get_status_display }}</span>
+      <span class="badge bg-{{ c.priority_class }}">Priority: {{ c.priority }}{% if c.override_priority %} (overridden){% endif %}</span>
+      {% if c.source == 'HISTORICAL' %}<span class="badge bg-secondary">Imported historical record</span>{% else %}<span class="badge bg-primary">Submitted via CiviSense</span>{% endif %}
+      {% if c.duplicate_group %}<span class="badge bg-info text-dark">Related group #{{ c.duplicate_group.pk }}</span>{% endif %}
+    </div>
+    <h5>{{ c.title }}</h5><p style="white-space:pre-line">{{ c.description }}</p>
+    <div class="row small g-2">
+      <div class="col-md-4"><span class="text-muted">Category</span><br><strong>{{ c.category.name|default:"-" }}</strong>{% if c.category_corrected %} <span class="badge bg-warning text-dark">corrected</span>{% endif %}
+        {% if c.predicted_category %}<div class="text-muted" style="font-size:.75rem">Model suggestion: {{ c.predicted_category.name }} ({% widthratio c.prediction_confidence 1 100 %}% confidence)</div>{% endif %}</div>
+      <div class="col-md-4"><span class="text-muted">Department</span><br><strong>{{ c.department.code|default:"Not assigned" }}</strong></div>
+      <div class="col-md-4"><span class="text-muted">Ward</span><br><strong>{{ c.ward.name|default:"-" }}</strong></div>
+      <div class="col-md-8"><span class="text-muted">Location</span><br>{{ c.address|default:"-" }}{% if c.has_geo %}<br><span class="text-muted">{{ c.latitude|floatformat:5 }}, {{ c.longitude|floatformat:5 }}</span>{% else %}<br><span class="text-muted">No coordinates provided</span>{% endif %}</div>
+      <div class="col-md-4"><span class="text-muted">Submitted</span><br>{{ c.created_at|date:"d M Y H:i" }}{% if c.resolved_at %}<br><span class="text-muted">Resolved {{ c.resolved_at|date:"d M Y H:i" }}</span>{% endif %}</div>
+      {% if c.source == 'HISTORICAL' %}<div class="col-md-4"><span class="text-muted">Sub-category</span><br>{{ c.sub_category|default:"-" }}</div><div class="col-md-4"><span class="text-muted">Public comments</span><br>{{ c.comment_count }}</div>
+        {% if c.original_category and c.original_category != c.category.name %}<div class="col-md-4"><span class="text-muted">Original category label</span><br>{{ c.original_category }}</div>{% endif %}
+      {% else %}<div class="col-md-4"><span class="text-muted">Reported severity / impact</span><br>{{ c.severity }}/5 · level {{ c.public_impact }}/3</div>
+        {% if user.is_admin_role %}<div class="col-md-4"><span class="text-muted">Citizen</span><br>{{ c.citizen.get_full_name|default:c.citizen.username }} ({{ c.citizen.email }})</div>{% elif staff %}<div class="col-md-4"><span class="text-muted">Citizen</span><br>Registered citizen (details protected)</div>{% endif %}{% endif %}
+      {% if c.assigned_officer %}<div class="col-md-4"><span class="text-muted">Assigned officer</span><br>{{ c.assigned_officer.username }}</div>{% endif %}
+    </div>
+    {% if c.image %}<hr><img src="{{ c.image.url }}" class="img-fluid rounded" style="max-height:320px" alt="Issue photograph">{% endif %}
+    {% if c.resolution_details %}<hr><div class="small text-muted">Resolution details</div><p class="mb-0">{{ c.resolution_details }}</p>{% endif %}
+    {% if c.has_geo %}<hr><div id="minimap"></div>{% endif %}
+  </div></div>
+
+  <div class="card mb-3"><div class="card-header">Priority recommendation <span class="badge badge-algo ms-2">rule-based</span></div><div class="card-body">
+    <div class="d-flex align-items-center gap-3 mb-3"><div class="fs-3 fw-bold">{{ c.priority_score }}<small class="fs-6 text-muted"> / 100</small></div><span class="badge bg-{% if c.recommended_priority == 'Critical' %}danger{% elif c.recommended_priority == 'High' %}warning{% elif c.recommended_priority == 'Medium' %}info{% else %}success{% endif %} fs-6">Recommended: {{ c.recommended_priority }}</span></div>
+    {% for f in c.priority_factors %}<div class="mb-2"><div class="d-flex justify-content-between small"><span><strong>{{ f.factor }}</strong> &ndash; {{ f.detail }}</span><span>{{ f.points }} / {{ f.max }}</span></div><div class="factor-bar"><div style="width:{% widthratio f.points f.max 100 %}%"></div></div></div>{% endfor %}
+    {% if c.override_priority %}<div class="alert alert-warning small mt-3 mb-0">Overridden to <strong>{{ c.override_priority }}</strong> by {{ c.override_by.username|default:"an officer" }}. Reason: {{ c.override_reason }}</div>{% endif %}
+    <div class="small text-muted mt-3">Levels: Critical &ge; 65, High &ge; 50, Medium &ge; 35, otherwise Low. This is a triage aid only &ndash; it does not predict real-world danger or guarantee resolution.</div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-header">Related complaints <span class="badge badge-algo ms-2">TF-IDF + cosine similarity</span></div><div class="card-body">
+    <p class="small text-muted">Suggested by text similarity, adjusted by distance and date proximity. Complaints are never merged or deleted &ndash; every citizen report stays traceable.</p>
+    {% if suggestions %}<table class="table table-sm small align-middle"><thead><tr><th>Complaint</th><th>Text similarity</th><th>Combined score</th><th>Distance</th><th>Days apart</th><th>Review</th></tr></thead><tbody>
+    {% for s,o in suggestions %}<tr><td><a href="{% url 'complaint_detail' o.ref %}">{{ o.ref }}</a><div class="text-muted">{{ o.title|truncatechars:45 }}</div></td><td>{% widthratio s.text_similarity 1 100 %}%</td><td>{% widthratio s.combined_score 1 100 %}%</td><td>{% if s.distance_m is not None %}{{ s.distance_m|floatformat:0 }} m{% else %}n/a{% endif %}</td><td>{% if s.days_apart is not None %}{{ s.days_apart|floatformat:0 }}{% else %}n/a{% endif %}</td>
+      <td>{% if s.state == 'SUGGESTED' %}{% if can_update %}<form method="post" class="d-flex gap-1">{% csrf_token %}<input type="hidden" name="action" value="dup_review"><input type="hidden" name="suggestion" value="{{ s.pk }}"><button name="decision" value="confirm" class="btn btn-sm btn-success">Confirm</button><button name="decision" value="reject" class="btn btn-sm btn-outline-secondary">Not related</button></form>{% else %}<span class="badge bg-light text-dark">Suggested</span>{% endif %}{% else %}<span class="badge bg-{% if s.state == 'CONFIRMED' %}success{% else %}secondary{% endif %}">{{ s.get_state_display }}</span>{% endif %}</td></tr>{% endfor %}</tbody></table>
+    {% else %}<div class="text-muted small">No related complaints were found above the similarity threshold.</div>{% endif %}
+    {% if group_members %}<div class="small mt-2"><strong>Confirmed related group:</strong> {% for m in group_members %}<a href="{% url 'complaint_detail' m.ref %}">{{ m.ref }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+  </div></div>
+</div>
+
+<div class="col-xl-4">
+  <div class="card mb-3"><div class="card-header">Status history</div><div class="card-body"><div class="timeline">
+    {% for h in history %}<div class="item"><div class="fw-semibold">{% if h.old_status %}{{ h.old_status }} &rarr; {% endif %}{{ h.new_status }}</div><div class="small text-muted">{{ h.created_at|date:"d M Y H:i" }}{% if h.changed_by and not user.is_citizen %} · {{ h.changed_by.username }}{% endif %}</div>{% if h.remarks %}<div class="small">{{ h.remarks }}</div>{% endif %}</div>
+    {% empty %}<div class="small text-muted">Imported historical record: the source dataset only holds the final status ({{ c.status }}), not a status history.</div>{% endfor %}
+  </div></div></div>
+
+  {% if can_correct %}<div class="card mb-3"><div class="card-header">Correct the category</div><div class="card-body"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="correct_category"><div class="mb-2">{{ correct_form.category }}</div><button class="btn btn-sm btn-outline-primary">Save correction</button><div class="form-text">Corrections are stored and used when the classifier is retrained.</div></form></div></div>{% endif %}
+
+  {% if user.is_admin_role %}<div class="card mb-3"><div class="card-header">Assign to officer</div><div class="card-body"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="assign">
+    <select name="officer" class="form-select mb-2" required><option value="">Select officer</option>{% for o in assign_form.fields.officer.queryset %}<option value="{{ o.pk }}" {% if c.assigned_officer_id == o.pk %}selected{% endif %}>{{ o.username }}{% if o.department %} ({{ o.department.code }}){% endif %}</option>{% endfor %}</select>
+    <button class="btn btn-sm btn-primary">Assign</button></form>
+    {% if assignments %}<div class="small text-muted mt-2">{% for a in assignments %}{{ a.assigned_at|date:"d M" }}: {{ a.officer.username }}{% if a.is_active %} (current){% endif %}<br>{% endfor %}</div>{% endif %}</div></div>{% endif %}
+
+  {% if can_update %}
+  <div class="card mb-3"><div class="card-header">Update status</div><div class="card-body"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="status">
+    <div class="mb-2">{{ status_form.status }}</div><div class="mb-2"><label class="form-label small mb-0">Remarks</label>{{ status_form.remarks }}</div>
+    <div class="mb-2"><label class="form-label small mb-0">Resolution details (required when resolving)</label>{{ status_form.resolution_details }}</div><button class="btn btn-sm btn-primary">Save status</button></form></div></div>
+  <div class="card mb-3"><div class="card-header">Review priority</div><div class="card-body"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="override">
+    <div class="mb-2">{{ override_form.level }}</div><div class="mb-2">{{ override_form.reason }}</div><button class="btn btn-sm btn-outline-primary">Apply</button></form></div></div>
+  {% endif %}
+</div></div>
+{% endblock %}
+{% block scripts %}{% if c.has_geo %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
+const m=L.map('minimap').setView([{{ c.latitude|stringformat:'f' }},{{ c.longitude|stringformat:'f' }}],16);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(m).on('tileerror',function(){var n=document.getElementById('minimap');n.title='Map tiles could not be loaded - the marker is still at the stored coordinates.';});
+L.marker([{{ c.latitude|stringformat:'f' }},{{ c.longitude|stringformat:'f' }}]).addTo(m);
+</script>{% endif %}{% endblock %}

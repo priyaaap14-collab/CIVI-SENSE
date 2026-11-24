@@ -1,0 +1,20 @@
+<div class="table-responsive"><table class="table table-hover align-middle small">
+  <thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Ward</th><th>Dept</th><th>Status</th><th>Priority</th>{% if mode != 'citizen' %}<th title="Related reports found by similarity">Related</th>{% endif %}{% if mode == 'admin' %}<th>Officer</th>{% endif %}<th>Date</th></tr></thead>
+  <tbody>
+  {% for c in page %}
+    <tr><td><a href="{% url 'complaint_detail' c.ref %}" class="fw-semibold text-decoration-none">{{ c.ref }}</a>{% if c.source == 'HISTORICAL' %}<br><span class="badge bg-secondary badge-src">historical</span>{% else %}<br><span class="badge bg-warning badge-src">live</span>{% endif %}</td>
+      <td style="max-width:300px">{{ c.title|truncatechars:70 }}</td><td>{{ c.category.name|default:"-" }}</td><td>{{ c.ward.name|default:"-" }}</td><td>{{ c.department.code|default:"-" }}</td>
+      <td><span class="badge bg-{{ c.status_class }}">{{ c.status }}</span></td>
+      <td><span class="badge bg-{{ c.priority_class }}">{{ c.priority }}</span>{% if c.override_priority %} <i class="bi bi-pencil-fill text-muted" title="Overridden by officer"></i>{% endif %}</td>
+      {% if mode != 'citizen' %}<td>{% if c.related_count %}<span class="badge bg-info-subtle text-info-emphasis">{{ c.related_count }}</span>{% else %}-{% endif %}</td>{% endif %}
+      {% if mode == 'admin' %}<td>{{ c.assigned_officer.username|default:"-" }}</td>{% endif %}
+      <td class="text-nowrap">{{ c.created_at|date:"d M Y" }}</td></tr>
+  {% empty %}<tr><td colspan="10" class="empty-state"><i class="bi bi-inbox"></i>No complaints match the current filters.</td></tr>{% endfor %}
+  </tbody></table></div>
+<div class="d-flex justify-content-between align-items-center small">
+  <span class="text-muted">{{ total_found }} complaint{{ total_found|pluralize }} found</span>
+  <ul class="pagination pagination-sm mb-0">
+    {% if page.has_previous %}<li class="page-item"><a class="page-link" href="?{{ qs_string }}&page={{ page.previous_page_number }}">&laquo;</a></li>{% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ page.number }} / {{ page.paginator.num_pages }}</span></li>
+    {% if page.has_next %}<li class="page-item"><a class="page-link" href="?{{ qs_string }}&page={{ page.next_page_number }}">&raquo;</a></li>{% endif %}
+  </ul></div>

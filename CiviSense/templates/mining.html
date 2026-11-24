@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Data mining{% endblock %}
+{% block heading %}Data mining &amp; intelligence{% endblock %}
+{% block content %}
+<div class="cs-page-intro"><div><span class="eyebrow">Civic intelligence</span><h1>Data mining &amp; insights</h1><p>Understand complaint patterns through classification, duplicate detection, clustering and trend analysis.</p></div><span class="cs-intro-icon"><i class="bi bi-diagram-3-fill"></i></span></div>
+<div class="explain mb-3">Every number on this page is computed from the actual database or stored evaluation results produced by <code>python manage.py train_models</code>. Mining uses the <strong>imported historical records only</strong>, so live test submissions never affect the reported metrics.</div>
+
+{% if wr %}
+<div class="card mb-3"><div class="card-header">0 · Data wrangling summary <span class="badge badge-algo ms-2">Pandas pipeline</span></div><div class="card-body">
+  <div class="row text-center g-2 mb-3">
+    <div class="col-6 col-md-2"><div class="fs-4 fw-bold">{{ wr.original_record_count }}</div><div class="small text-muted">original records</div></div>
+    <div class="col-6 col-md-2"><div class="fs-4 fw-bold">{{ wr.cleaned_record_count }}</div><div class="small text-muted">cleaned records</div></div>
+    <div class="col-6 col-md-2"><div class="fs-4 fw-bold">{{ wr.exact_duplicates_removed }}</div><div class="small text-muted">exact duplicates removed</div></div>
+    <div class="col-6 col-md-2"><div class="fs-4 fw-bold">{{ wr.categories_before }} &rarr; {{ wr.categories_after }}</div><div class="small text-muted">categories</div></div>
+    <div class="col-6 col-md-2"><div class="fs-4 fw-bold">{{ wr.after.wards }}</div><div class="small text-muted">wards</div></div>
+    <div class="col-6 col-md-2"><div class="fs-4 fw-bold">{{ wr.after.valid_geo_records }}</div><div class="small text-muted">valid coordinates</div></div>
+  </div>
+  <div class="row small"><div class="col-md-6"><strong>Missing values before</strong> ({{ wr.before.total_missing_cells }} cells): {% for k,v in wr.before.missing_values.items %}{{ k }} {{ v }}{% if not forloop.last %}, {% endif %}{% endfor %}<br>
+    <strong>Missing values after</strong> ({{ wr.after.total_missing_cells }} cells): {% for k,v in wr.after.missing_values.items %}{{ k }} {{ v }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+    <div class="col-md-6"><strong>Invalid dates:</strong> {{ wr.invalid_dates }} &middot; <strong>invalid coordinates nulled:</strong> {{ wr.invalid_or_missing_coordinates_nulled }} &middot; <strong>date formats found:</strong> {{ wr.before.date_string_formats }} &middot; <strong>empty text after cleaning:</strong> {{ wr.records_with_empty_text_after_cleaning }} (kept, excluded from NLP)<br><strong>Date range:</strong> {{ wr.date_range.0|slice:":10" }} to {{ wr.date_range.1|slice:":10" }}</div></div>
+  <div class="small text-muted mt-2">Exact duplicate rows (identical in every column) are removed during cleaning and logged in <code>data/cleaned/removed_exact_duplicates.csv</code>. This is different from <em>suspected</em> duplicate complaints (section 2), which are never deleted.</div>
+  <details class="small mt-2"><summary>Known limitations of the source data</summary><ul class="mb-0">{% for l in wr.limitations %}<li>{{ l }}</li>{% endfor %}</ul></details>
+</div></div>
+{% endif %}
+
+<div class="card mb-3"><div class="card-header">1 · Complaint classification <span class="badge badge-algo ms-2">TF-IDF + Logistic Regression</span></div><div class="card-body">
+{% if cls %}
+  <p class="small text-muted">{{ cls.algorithm }}. {{ cls.split }}; {{ cls.n_train }} training / {{ cls.n_test }} test complaints; {{ cls.n_classes }} categories. Categories with fewer than 20 labelled records ({% for k,v in cls.excluded_classes.items %}{{ k }}: {{ v }}{% if not forloop.last %}, {% endif %}{% endfor %}) were excluded from training. {{ cls.note }}</p>
+  <div class="row text-center g-2 mb-3">
+    <div class="col"><div class="fs-3 fw-bold">{% widthratio cls.accuracy 1 100 %}%</div><div class="small text-muted">accuracy</div></div>
+    <div class="col"><div class="fs-3 fw-bold">{{ cls.macro_precision|floatformat:3 }}</div><div class="small text-muted">macro precision</div></div>
+    <div class="col"><div class="fs-3 fw-bold">{{ cls.macro_recall|floatformat:3 }}</div><div class="small text-muted">macro recall</div></div>
+    <div class="col"><div class="fs-3 fw-bold">{{ cls.macro_f1|floatformat:3 }}</div><div class="small text-muted">macro F1</div></div>
+    <div class="col"><div class="fs-3 fw-bold">{{ cls.weighted_f1|floatformat:3 }}</div><div class="small text-muted">weighted F1</div></div></div>
+  <div class="row g-3"><div class="col-xl-7"><div class="fw-semibold small mb-1">Confusion matrix (row-normalised: share of each actual category)</div><div id="c-cm"></div></div>
+  <div class="col-xl-5"><div class="fw-semibold small mb-1">Per-category results (test set)</div><div style="max-height:600px;overflow:auto"><table class="table table-sm small"><thead><tr><th>Category</th><th>Precision</th><th>Recall</th><th>F1</th><th>n</th></tr></thead><tbody>
+    {% for k,v in per_class %}<tr><td>{{ k }}</td><td>{{ v.precision|floatformat:2 }}</td><td>{{ v.recall|floatformat:2 }}</td><td>{{ v.f1|floatformat:2 }}</td><td>{{ v.support|floatformat:0 }}</td></tr>{% endfor %}</tbody></table></div></div></div>
+{% else %}<div class="alert alert-warning mb-0">The classifier has not been trained yet. Run <code>python manage.py train_models</code>.</div>{% endif %}
+</div></div>
+
+<div class="card mb-3"><div class="card-header">2 · Duplicate complaint detection <span class="badge badge-algo ms-2">TF-IDF + cosine similarity</span></div><div class="card-body">
+{% if dup %}
+  <p class="small text-muted">Score = cosine similarity &times; geographic factor (1.0 within 250&nbsp;m, falling to 0 at 1.5&nbsp;km; 0.85 when a location is missing) &times; date factor (1.0 within 30 days, falling to 0.6 at one year). Indexed complaints: {{ dup.index_size }}; vocabulary: {{ dup.vocabulary_size }} terms.</p>
+  <div class="alert alert-warning small"><strong>How to read these scores.</strong> {{ dup.evaluation_set.construction }}</div>
+  <div class="row g-3"><div class="col-xl-6"><div id="c-dup"></div></div>
+  <div class="col-xl-6"><table class="table table-sm small"><thead><tr><th>Threshold</th><th>Precision</th><th>Recall</th><th>F1</th><th>TP / FP / FN</th></tr></thead><tbody>
+    {% for t in dup.thresholds %}{% if t.threshold == 0.2 or t.threshold == 0.3 or t.threshold == 0.4 or t.threshold == 0.5 or t.threshold == 0.6 or t.threshold == 0.7 or t.threshold == 0.8 %}<tr {% if t.threshold == dup.operating_threshold %}class="table-primary"{% endif %}><td>{{ t.threshold }}</td><td>{{ t.precision|floatformat:3 }}</td><td>{{ t.recall|floatformat:3 }}</td><td>{{ t.f1|floatformat:3 }}</td><td>{{ t.tp }} / {{ t.fp }} / {{ t.fn }}</td></tr>{% endif %}{% endfor %}</tbody></table>
+    <div class="small text-muted">Evaluation set: {{ dup.evaluation_set.positives }} positive pairs, {{ dup.evaluation_set.negatives_same_category }} same-category negatives, {{ dup.evaluation_set.negatives_random }} random negatives. Best-F1 threshold {{ dup.best_f1_threshold }}; operating threshold <strong>{{ dup.operating_threshold }}</strong> (chosen conservatively, minimum 0.50). Mean similarity: re-worded copies {{ dup.mean_similarity.positives|floatformat:2 }}, same-category pairs {{ dup.mean_similarity.same_category_negatives|floatformat:2 }}, random pairs {{ dup.mean_similarity.random_negatives|floatformat:2 }}.</div></div></div>
+  {% if dup_mining %}<hr><div class="small"><strong>Mining the real historical data:</strong> {{ dup_mining.pairs_found }} suspected pairs involving {{ dup_mining.complaints_involved }} complaints at threshold {{ dup_mining.threshold }}. These are suggestions for officer review &ndash; no complaint was merged or deleted.</div>
+  <table class="table table-sm small mt-2"><thead><tr><th>Pair</th><th>Category</th><th>Text similarity</th><th>Combined</th><th>Distance</th><th>Days apart</th></tr></thead><tbody>
+    {% for s in top_pairs %}<tr><td><a href="{% url 'complaint_detail' s.complaint.ref %}">{{ s.complaint.ref }}</a> ~ <a href="{% url 'complaint_detail' s.other.ref %}">{{ s.other.ref }}</a></td><td>{{ s.complaint.category.name|default:"-" }}</td><td>{% widthratio s.text_similarity 1 100 %}%</td><td>{% widthratio s.combined_score 1 100 %}%</td><td>{% if s.distance_m is not None %}{{ s.distance_m|floatformat:0 }} m{% else %}n/a{% endif %}</td><td>{{ s.days_apart|floatformat:0 }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+{% else %}<div class="alert alert-warning mb-0">Run <code>python manage.py train_models</code> to build the duplicate index.</div>{% endif %}
+</div></div>
+
+<div class="card mb-3"><div class="card-header">3 · Geographic hotspots <span class="badge badge-algo ms-2">DBSCAN</span></div><div class="card-body">
+{% if dbscan %}
+  <p class="small text-muted">Default parameters: radius {{ dbscan.eps_m }}&nbsp;m, minimum {{ dbscan.min_samples }} complaints, haversine distance, {{ dbscan.n_points }} historical complaints with valid coordinates. Explore other settings, categories and wards on the <a href="{% url 'geo' %}">Geographical analysis</a> page.</p>
+  <div class="row text-center g-2 mb-2"><div class="col"><div class="fs-3 fw-bold">{{ dbscan.n_clusters }}</div><div class="small text-muted">clusters</div></div><div class="col"><div class="fs-3 fw-bold">{{ dbscan.noise_points }}</div><div class="small text-muted">noise points</div></div><div class="col"><div class="fs-3 fw-bold">{{ dbscan.clustered_points }}</div><div class="small text-muted">clustered points</div></div>
+    <div class="col"><div class="fs-3 fw-bold">{% if dbscan.silhouette is not None %}{{ dbscan.silhouette|floatformat:3 }}{% else %}n/a{% endif %}</div><div class="small text-muted">silhouette (haversine)</div></div>
+    <div class="col"><div class="fs-3 fw-bold">{% if dbscan.davies_bouldin is not None %}{{ dbscan.davies_bouldin|floatformat:2 }}{% else %}n/a{% endif %}</div><div class="small text-muted">Davies-Bouldin (lower is better)</div></div></div>
+  {% if dbscan.size_stats %}<div class="small text-muted mb-2">Cluster size: min {{ dbscan.size_stats.min }}, median {{ dbscan.size_stats.median|floatformat:0 }}, max {{ dbscan.size_stats.max }}</div>{% endif %}
+  <table class="table table-sm small"><thead><tr><th>#</th><th>Complaints</th><th>Radius</th><th>Top category</th><th>Top ward</th></tr></thead><tbody>{% for c in dbscan.clusters|slice:":10" %}<tr><td>{{ c.id }}</td><td>{{ c.size }}</td><td>{{ c.radius_m }} m</td><td>{{ c.top_category }} ({% widthratio c.top_category_share 1 100 %}%)</td><td>{{ c.top_ward }}</td></tr>{% endfor %}</tbody></table>
+{% else %}<div class="text-muted">No historical complaints available.</div>{% endif %}
+</div></div>
+
+<div class="card mb-3"><div class="card-header">4 · Ward-level clustering <span class="badge badge-algo ms-2">K-Means</span></div><div class="card-body">
+{% if km %}
+  <p class="small text-muted">{{ km.n_wards }} wards with at least {{ km.min_complaints }} historical complaints ({{ km.excluded_wards|length }} excluded as too small). Features (standardised with z-scores): {{ km.features|join:", " }}. k was chosen as the highest silhouette score in the range 3&ndash;8.</p>
+  <div class="row g-3"><div class="col-md-4"><div id="c-elbow"></div></div><div class="col-md-4"><div id="c-sil"></div></div><div class="col-md-4"><div id="c-pca"></div></div></div>
+  <div class="small mt-2 mb-3"><strong>Chosen k = {{ km.chosen_k }}</strong> &middot; silhouette {{ km.silhouette_at_k|floatformat:3 }} &middot; inertia {{ km.inertia_at_k|floatformat:1 }}</div>
+  <div class="row g-3">{% for cl in km.clusters %}<div class="col-lg-6"><div class="border rounded p-3 h-100"><div class="fw-semibold">Cluster {{ cl.id }} <span class="badge bg-light text-dark">{{ cl.profile.wards }} wards</span></div>
+    <div class="small">Avg {{ cl.profile.avg_complaints|floatformat:0 }} complaints/ward · backlog {% widthratio cl.profile.backlog_rate 1 100 %}% · resolved {% widthratio cl.profile.resolved_rate 1 100 %}% · most common: {{ cl.profile.top_category }}</div>
+    <div class="explain mt-2">What this cluster represents: {{ cl.explanation }}.</div>
+    <details class="small mt-2"><summary>Wards</summary>{{ cl.wards|join:", " }}</details></div></div>{% endfor %}</div>
+{% else %}<div class="text-muted">No historical complaints available.</div>{% endif %}
+</div></div>
+
+<div class="card mb-3"><div class="card-header">5 · Complaint trend analysis <span class="badge badge-algo ms-2">Time-series aggregation</span></div><div class="card-body"><div class="row g-3"><div class="col-lg-8"><div id="c-trend"></div></div><div class="col-lg-4"><div id="c-weekday"></div></div></div></div></div>
+
+{% for k,v in charts.items %}{{ v|json_script:k }}{% endfor %}
+{% endblock %}
+{% block scripts %}<script>['cm','dup','elbow','sil','pca','trend','weekday'].forEach(k=>csPlot(k,'c-'+k));</script>{% endblock %}

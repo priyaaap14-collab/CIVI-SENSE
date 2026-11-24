@@ -1,0 +1,21 @@
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-md-3"><label class="form-label small mb-0">Search</label><input name="q" value="{{ g.q }}" class="form-control form-control-sm" placeholder="ID, title, text, address"></div>
+  {% if mode != 'citizen' %}
+  <div class="col-md-2"><label class="form-label small mb-0">Department</label><select name="department" class="form-select form-select-sm"><option value="">All</option>{% for d in departments %}<option value="{{ d.pk }}" {% if g.department == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.code }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><label class="form-label small mb-0">Category</label><select name="category" class="form-select form-select-sm"><option value="">All</option>{% for c in categories %}<option value="{{ c.pk }}" {% if g.category == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><label class="form-label small mb-0">Ward</label><select name="ward" class="form-select form-select-sm"><option value="">All</option>{% for w in wards %}<option value="{{ w.pk }}" {% if g.ward == w.pk|stringformat:'s' %}selected{% endif %}>{{ w.name }}</option>{% endfor %}</select></div>
+  {% endif %}
+  <div class="col-md-1"><label class="form-label small mb-0">Status</label><select name="status" class="form-select form-select-sm"><option value="">All</option>{% for v,l in statuses %}<option value="{{ v }}" {% if g.status == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  {% if mode != 'citizen' %}
+  <div class="col-md-1"><label class="form-label small mb-0">Priority</label><select name="priority" class="form-select form-select-sm"><option value="">All</option>{% for v,l in priorities %}<option value="{{ v }}" {% if g.priority == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  {% endif %}
+  {% if mode == 'admin' %}
+  <div class="col-md-2"><label class="form-label small mb-0">Source</label><select name="source" class="form-select form-select-sm"><option value="">All</option><option value="HISTORICAL" {% if g.source == 'HISTORICAL' %}selected{% endif %}>Imported historical</option><option value="LIVE" {% if g.source == 'LIVE' %}selected{% endif %}>Live submissions</option></select></div>
+  <div class="col-md-2"><label class="form-label small mb-0">Sort</label><select name="sort" class="form-select form-select-sm"><option value="new">Newest first</option><option value="old" {% if g.sort == 'old' %}selected{% endif %}>Oldest first</option><option value="priority" {% if g.sort == 'priority' %}selected{% endif %}>Highest priority score</option></select></div>
+  <div class="col-md-3 d-flex gap-3 align-items-center small">
+    <div class="form-check"><input class="form-check-input" type="checkbox" name="dups" value="1" id="fd" {% if g.dups %}checked{% endif %}><label class="form-check-label" for="fd">Suspected duplicates</label></div>
+    <div class="form-check"><input class="form-check-input" type="checkbox" name="assigned" value="none" id="fa" {% if g.assigned %}checked{% endif %}><label class="form-check-label" for="fa">Unassigned</label></div>
+  </div>
+  {% endif %}
+  <div class="col-auto"><button class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filter</button> <a class="btn btn-sm btn-outline-secondary" href="?">Reset</a></div>
+</form>

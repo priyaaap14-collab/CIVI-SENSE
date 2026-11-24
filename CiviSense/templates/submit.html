@@ -1,0 +1,54 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Submit a complaint{% endblock %}
+{% block heading %}Submit a complaint{% endblock %}
+{% block head %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block content %}
+<div class="cs-page-intro"><div><span class="eyebrow">Citizen services</span><h1>Report a civic issue</h1><p>Share the details and location so the right department can review and act on your complaint.</p></div><span class="cs-intro-icon"><i class="bi bi-megaphone-fill"></i></span></div>
+<form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+{{ form.latitude }}{{ form.longitude }}{{ form.input_method }}{{ form.original_language }}
+{% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+<div class="row g-3"><div class="col-lg-7"><div class="card"><div class="card-body">
+<div class="voice-box mb-3" id="voiceBox" data-analyze-url="{% url 'api_complaint_analyze' %}">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+    <div class="fw-semibold"><i class="bi bi-mic"></i> Speak or type your complaint</div>
+    <div class="btn-group lang-toggle" role="group" aria-label="Language">
+      <input type="radio" class="btn-check" name="vlang" id="vlang-en" value="en" checked><label class="btn btn-sm btn-outline-secondary" for="vlang-en">English</label>
+      <input type="radio" class="btn-check" name="vlang" id="vlang-kn" value="kn"><label class="btn btn-sm btn-outline-secondary" for="vlang-kn" lang="kn">ಕನ್ನಡ</label>
+    </div>
+  </div>
+  <div class="d-flex align-items-start gap-3">
+    <button type="button" class="mic-btn" id="micBtn" aria-label="Start recording"><i class="bi bi-mic-fill"></i></button>
+    <div class="flex-grow-1">
+      <div class="voice-status" id="voiceStatus" role="status" aria-live="polite">Choose a language, press the microphone and speak. You can edit the text afterwards.</div>
+      <textarea class="form-control mt-1" id="voiceText" rows="3" maxlength="4000" placeholder="Your complaint appears here. You can also type it." aria-label="Complaint text"></textarea>
+      <div class="interim small" id="interimText"></div>
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        <button type="button" class="btn btn-sm btn-primary" id="analyzeBtn"><i class="bi bi-magic"></i> Review &amp; fill the form</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="clearVoice">Clear</button>
+      </div>
+      <div class="form-text">Voice recognition runs in your browser (Chrome or Edge, with internet). It does not work on every device, especially for Kannada - typing always works. Your words are kept in the language you speak.</div>
+    </div>
+  </div>
+  <div class="analysis mt-3 d-none" id="analysis" aria-live="polite"></div>
+</div>
+  <div class="mb-3"><label class="form-label">{{ form.title.label }}</label>{{ form.title }}{% for e in form.title.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+  <div class="mb-3"><label class="form-label">{{ form.description.label }}</label>{{ form.description }}{% for e in form.description.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+  <div id="suggestBox" class="mb-3 d-none"><div class="small text-muted mb-1"><i class="bi bi-stars"></i> Suggested categories (click to select)</div><div id="suggestList" class="list-group"></div></div>
+  <div class="row"><div class="col-md-6 mb-3"><label class="form-label">{{ form.category.label }}</label>{{ form.category }}<div class="form-text">{{ form.category.help_text }}</div>{% for e in form.category.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+  <div class="col-md-6 mb-3"><label class="form-label">{{ form.ward.label }}</label>{{ form.ward }}<div class="form-text" id="wardHint"></div>{% for e in form.ward.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div></div>
+  <div class="mb-3"><label class="form-label">{{ form.address.label }}</label>{{ form.address }}</div>
+  <div class="row"><div class="col-md-6 mb-3"><label class="form-label">{{ form.severity.label }}</label>{{ form.severity }}</div><div class="col-md-6 mb-3"><label class="form-label">{{ form.public_impact.label }}</label>{{ form.public_impact }}</div></div>
+  <div class="mb-3"><label class="form-label">Photograph (JPG, PNG or WEBP, max 5 MB)</label>{{ form.image }}{% for e in form.image.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+  {% for e in form.latitude.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+  <div class="form-check mb-3 d-none" id="reviewBox">{{ form.voice_reviewed }} <label class="form-check-label" for="{{ form.voice_reviewed.id_for_label }}">{{ form.voice_reviewed.label }}</label></div>
+  
+  <button class="btn btn-primary"><i class="bi bi-send"></i> Submit complaint</button>
+</div></div></div>
+<div class="col-lg-5"><div class="card"><div class="card-header">Pin the location <span class="small text-muted fw-normal">(optional)</span></div><div class="card-body">
+  <div id="mapNotice" class="alert alert-warning py-1 small d-none">Map tiles could not be loaded (offline?). You can still submit without a pin.</div><div id="pickmap"></div><div class="d-flex justify-content-between mt-2"><button type="button" class="btn btn-sm btn-outline-primary" id="locate"><i class="bi bi-geo"></i> Use my location</button><span class="small text-muted" id="coordText">No pin selected</span></div>
+  <div class="form-text">Click the map to drop a pin. Only the Bengaluru area can be selected. Coordinates help detect related reports and hotspots; they are never invented if you skip this.</div></div></div></div></div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/voice.js' %}"></script>
+<script src="{% static 'js/submit.js' %}"></script>{% endblock %}

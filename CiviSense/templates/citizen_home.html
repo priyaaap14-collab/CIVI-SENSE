@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}My complaints{% endblock %}
+{% block heading %}Citizen portal{% endblock %}
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="card kpi k-navy"><div class="card-body d-flex justify-content-between align-items-start"><div><div class="label">My complaints</div><div class="value">{{ stats.total }}</div></div><i class="bi bi-folder2-open"></i></div></div></div>
+  <div class="col-md-4"><div class="card kpi k-warn"><div class="card-body d-flex justify-content-between align-items-start"><div><div class="label">In progress</div><div class="value">{{ stats.active }}</div></div><i class="bi bi-hourglass-split"></i></div></div></div>
+  <div class="col-md-4"><div class="card kpi k-ok"><div class="card-body d-flex justify-content-between align-items-start"><div><div class="label">Resolved / closed</div><div class="value">{{ stats.done }}</div></div><i class="bi bi-check2-circle"></i></div></div></div>
+</div>
+<div class="row g-3"><div class="col-lg-9"><div class="card"><div class="card-header d-flex justify-content-between">Track my complaints <a class="btn btn-sm btn-primary" href="{% url 'citizen_submit' %}"><i class="bi bi-plus-circle"></i> New complaint</a></div>
+  <div class="card-body">{% include '_filters.html' %}{% include '_table.html' %}</div></div></div>
+  <div class="col-lg-3"><div class="card"><div class="card-header">Notifications</div><div class="card-body small">
+    {% for n in recent_notifications %}<div class="border-bottom pb-1 mb-1 {% if not n.is_read %}fw-semibold{% endif %}">{{ n.message }}<div class="text-muted" style="font-size:.7rem">{{ n.created_at|timesince }} ago</div></div>{% empty %}<div class="empty-state p-2"><i class="bi bi-bell-slash"></i>Nothing yet.</div>{% endfor %}</div></div></div></div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}CiviSense{% endblock %} · CiviSense</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Kannada:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/civisense.css' %}">
+<link rel="stylesheet" href="{% static 'css/assistant.css' %}">
+{% block head %}{% endblock %}
+</head>
+<body>
+{% if user.is_authenticated %}
+<aside class="cs-sidebar">
+  <div class="cs-brand"><span class="logo"><i class="bi bi-buildings-fill"></i></span><div>Civi<span class="ai">Sense</span><small>Civic complaint intelligence</small></div></div>
+  <nav class="cs-nav nav flex-column mt-2">
+    {% if user.role == 'ADMIN' %}
+      <div class="section">Administration</div>
+      <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'complaints' %}active{% endif %}" href="{% url 'complaints' %}"><i class="bi bi-card-list"></i> Complaint management</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'geo' %}active{% endif %}" href="{% url 'geo' %}"><i class="bi bi-map"></i> Geographical analysis</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'mining' %}active{% endif %}" href="{% url 'mining' %}"><i class="bi bi-diagram-3"></i> Data mining</a>
+      <a class="nav-link" href="/django-admin/"><i class="bi bi-gear"></i> Users &amp; master data</a>
+    {% elif user.role == 'OFFICER' %}
+      <div class="section">Officer</div>
+      <a class="nav-link {% if request.resolver_match.url_name == 'officer_home' %}active{% endif %}" href="{% url 'officer_home' %}"><i class="bi bi-inbox"></i> My complaints</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'geo' %}active{% endif %}" href="{% url 'geo' %}"><i class="bi bi-map"></i> Hotspot map</a>
+    {% else %}
+      <div class="section">Citizen</div>
+      <a class="nav-link {% if request.resolver_match.url_name == 'citizen_home' %}active{% endif %}" href="{% url 'citizen_home' %}"><i class="bi bi-list-check"></i> My complaints</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'citizen_submit' %}active{% endif %}" href="{% url 'citizen_submit' %}"><i class="bi bi-plus-circle"></i> Submit a complaint</a>
+    {% endif %}
+    <div class="section">Help</div>
+    <a class="nav-link {% if request.resolver_match.url_name == 'assistant' %}active{% endif %}" href="{% url 'assistant' %}"><i class="bi bi-chat-dots"></i> AI assistant</a>
+    <div class="section">Account</div>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="nav-link btn btn-link text-start w-100 border-0"><i class="bi bi-box-arrow-left"></i> Sign out</button></form>
+  </nav>
+  <div class="cs-side-foot"><i class="bi bi-shield-check text-accent"></i> Signed in as <strong class="text-white">{{ user.get_role_display }}</strong>{% if user.department %} · {{ user.department.code }}{% endif %}</div>
+</aside>
+<div class="cs-backdrop"></div>
+<div class="cs-main">
+  <header class="cs-top">
+    <div class="d-flex align-items-center"><button class="cs-iconbtn d-lg-none me-2" id="sidebarToggle" type="button" aria-label="Open menu"><i class="bi bi-list"></i></button>
+      <strong>{% block heading %}{% endblock %}</strong></div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="dropdown">
+        <button type="button" class="cs-iconbtn position-relative" data-bs-toggle="dropdown" aria-label="Notifications"><i class="bi bi-bell"></i>
+          {% if notif_unread %}<span class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill">{{ notif_unread }}</span>{% endif %}</button>
+        <div class="dropdown-menu dropdown-menu-end p-2" style="min-width:300px">
+          {% for n in notif_items %}<div class="small border-bottom py-1">{% if n.complaint %}<a class="text-decoration-none" href="{% url 'complaint_detail' n.complaint.ref %}">{{ n.message }}</a>{% else %}{{ n.message }}{% endif %}<div class="text-muted" style="font-size:.7rem">{{ n.created_at|timesince }} ago</div></div>
+          {% empty %}<div class="small text-muted p-2">No new notifications.</div>{% endfor %}
+          {% if notif_unread %}<form method="post" action="{% url 'notifications_read' %}" class="mt-2">{% csrf_token %}<button class="btn btn-sm btn-outline-primary w-100">Mark all as read</button></form>{% endif %}
+        </div>
+      </div>
+      <div class="cs-user"><span class="cs-avatar">{{ user.username|slice:":1" }}</span><div class="who lh-sm"><div class="fw-semibold">{{ user.get_full_name|default:user.username }}</div><div class="cs-role">{{ user.get_role_display }}{% if user.department %} · {{ user.department.code }}{% endif %}</div></div></div>
+    </div>
+  </header>
+  <main class="cs-content">
+    {% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags }}{% endif %} alert-dismissible fade show">{{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+<nav class="cs-pubnav"><div class="container d-flex justify-content-between align-items-center">
+  <a class="brand" href="{% url 'home' %}"><span class="cs-logo"><i class="bi bi-buildings-fill"></i></span><span>Civi<span class="text-accent">Sense</span></span></a>
+  <div class="d-flex align-items-center gap-2"><div class="links d-flex"><a href="{% url 'login' 'citizen' %}">Citizen</a><a href="{% url 'login' 'officer' %}">Officer</a><a href="{% url 'login' 'admin' %}">Administrator</a></div><a class="btn btn-sm btn-accent px-3" href="{% url 'register' %}">Register</a></div>
+</div></nav>
+<div class="container">{% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags }}{% endif %} alert-dismissible fade show mt-3">{{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}</div>
+{% block public %}{% endblock %}
+{% endif %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="{% static 'js/civisense.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body></html>

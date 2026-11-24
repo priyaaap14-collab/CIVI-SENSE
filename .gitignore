@@ -1,0 +1,4 @@
+﻿CiviSense/venv/
+__pycache__/
+*.pyc
+CiviSense/.env
